@@ -2,6 +2,8 @@ import hangover
 
 import card as crd
 import cursor as cur
+import camera as cam
+import file
 
 import textureData
 
@@ -46,8 +48,6 @@ createEvent[void] eventRedoAction
 var
   history*: seq[Action]
   next: int
-  todoSprite: Sprite
-  doneSprite: Sprite
  
 proc call*(a: Action) =
   case a.kind
@@ -88,8 +88,7 @@ proc unCall*(a: Action) =
     a.wireStart.wires.incl a.wireStop
 
 proc init*(h: var seq[Action], textures: TextureAtlas) =
-  todoSprite = newSprite(textures["8x"], Sprite8x(0, 5))
-  doneSprite = newSprite(textures["8x"], Sprite8x(0, 4))
+  discard
 
 eventDoAction.listen do (a: Action) -> bool:
   a.call
@@ -115,7 +114,15 @@ eventRedoAction.listen do () -> bool:
   next += 1
 
 eventPressKey.listen do (key: Key) -> bool:
-  if key == keyZ:
+  if key == keyLeft:
+    camera.target.x += 5
+  elif key == keyRight:
+    camera.target.x -= 5
+  elif key == keyUp:
+    camera.target.y += 5
+  elif key == keyDown:
+    camera.target.y -= 5
+  elif key == keyZ:
     if globalCtx.window.isKeyDown(keyLeftControl) or
        globalCtx.window.isKeyDown(keyRightControl):
       if globalCtx.window.isKeyDown(keyLeftShift) or
@@ -127,6 +134,16 @@ eventPressKey.listen do (key: Key) -> bool:
         eventUndoAction.send 
         for c in cards:
           c.selected = false
+  elif key == keyO:
+    if globalCtx.window.isKeyDown(keyLeftControl) or
+       globalCtx.window.isKeyDown(keyRightControl):
+      readCIKFile("plan.nn")
+      history = @[]
+      next = 0
+  elif key == keyS:
+    if globalCtx.window.isKeyDown(keyLeftControl) or
+       globalCtx.window.isKeyDown(keyRightControl):
+      writeCIKFile("tmp.nn")
   elif key == keySpace:
     var toggles: seq[Card]
       
@@ -134,6 +151,9 @@ eventPressKey.listen do (key: Key) -> bool:
       if c.selected:
         toggles &= c
 
+      if c.insert:
+        return
+  
     eventDoAction.send Action(
       kind: toggle,
       toggleCards: toggles,
@@ -159,12 +179,11 @@ eventMouseClick.listen do (btn: int) -> bool:
     eventDoAction.send Action(
       kind: create,
       card: Card(
+        text: "New Card",
         position: newRect(
           cursor.target.location,
           newVector2(10, 1),
         ),
-        sprite: todoSprite, 
-        doneSprite: doneSprite, 
         wires: initHashSet[Card](),
       ),
     )
@@ -198,7 +217,7 @@ eventCursorSize.listen do (offset: Vector2) -> bool:
   eventDoAction.send Action(
     kind: size,
     sizeCard: sizes,
-    sizeOffset: offset,
+      sizeOffset: offset,
   )
 
 eventWireCards.listen do (data: tuple[start, stop: Vector2]) -> bool:

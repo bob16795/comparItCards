@@ -13,8 +13,7 @@ import math
 
 import glfw
 
-var
-  loadDone: bool
+var loadDone: bool
 
 eventDrawLoad.listen do (loadData: LoadDrawEventData) -> bool:
   loadData.done = loadDone
@@ -29,6 +28,8 @@ eventInitialize.listen do () -> bool:
   loadAtlas("8x", "8x.png")
   loadAtlas("32x", "32x.png")
   textures.pack
+
+  cardFont = newFontMem(($res"pixel.ttf").cstring, res"pixel.ttf".size.cint, 64)
 
   history.init textures
   cursor.init textures

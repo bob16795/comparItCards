@@ -1,7 +1,0 @@
-[INFO] nres->load: nimres opened ./content.bin
-[DEBUG] ho->font: Loaded font library
-[TRACE] ho->templates: start loading game
-[DEBUG] ho->font: Loaded font library
-[DEBUG] ho->atlas: Packed Atlas 128x128
-[TRACE] ho->templates: Loaded game in 0.000605688s
-[DEBUG] ho->font: Unloaded font library

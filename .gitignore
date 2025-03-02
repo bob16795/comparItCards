@@ -1,2 +1,7 @@
 main
+main.exe
 content.bin
+hangover.log
+*.nn
+lin/**
+win/**

@@ -6,6 +6,8 @@ import camera as cam
 import cursor as csr
 import config as cnf
 
+import unicode
+
 import options
 import math
 import sets
@@ -13,15 +15,16 @@ import sets
 type
   Card* = ref object
     position*: Rect
-    sprite*: Sprite
-    doneSprite*: Sprite
     wires*: HashSet[Card]
     done*: bool
     progressVal*: float32
+    text*: string
+    insert*: bool
 
     selected*: bool
 
   CardTime* = object
+    visited*: HashSet[Card]
     completion: float32
     time*: float32
     done: bool
@@ -29,7 +32,9 @@ type
 
 const CARD_SPEED*: float32 = 0.1
 
-var cards*: seq[Card]
+var
+  cards*: seq[Card]
+  cardFont*: Font
 
 proc init*(self: seq[Card], textures: TextureAtlas) =
   discard
@@ -40,14 +45,17 @@ proc wiresVis*(self: Card): HashSet[Card] =
     if c in cards:
       result.incl c
 
-proc progress*(self: Card, visited: var HashSet[Card]): CardTime
+proc progress*(self: Card, visited: HashSet[Card] = initHashSet[Card]()): CardTime
 
-proc add*(self: var CardTime, other: Card, visited: var HashSet[Card]) =
+proc add*(self: var CardTime, other: Card, visited: HashSet[Card]) =
   if other in visited:
     self.fail = true
     return
 
-  var other_progress = other.progress visited
+  var tmp = visited
+  tmp.incl other
+
+  var other_progress = other.progress tmp
 
   self.completion += other_progress.completion
   self.time += other_progress.time
@@ -62,7 +70,7 @@ proc viewPosition*(self: Card): Rect =
   result.width = result.width.max(1)
   result.height = result.height.max(1)
 
-proc progress*(self: Card, visited: var HashSet[Card]): CardTime =
+proc progress*(self: Card, visited: HashSet[Card] = initHashSet[Card]()): CardTime =
   if self.wiresVis.len == 0:
     return CardTime(
       time: self.position.width * self.position.height,  
@@ -70,11 +78,39 @@ proc progress*(self: Card, visited: var HashSet[Card]): CardTime =
                   else: 0.0,
       done: self.done,
     )
-  visited.incl self
+  result.visited = visited
+  result.visited.incl self
 
   result.done = true
   for w in self.wiresVis:
     result.add(w, visited)
+
+eventEndInput.listen do () -> bool: 
+  for c in cards:
+    c.insert = false
+
+eventCursorInput.listen do () -> bool: 
+  for c in cards:
+    c.insert = c.selected
+
+eventPressKey.listen do (key: Key) -> bool:
+  case key
+  of keyEscape:
+    for c in cards:
+      c.insert = false
+  of keyEnter:
+    for c in cards:
+      c.insert = false
+  of keyBackspace:
+    for c in cards:
+      if c.insert and c.text != "":
+        c.text = c.text[0..^2]
+  else: discard
+
+eventPressChar.listen do (ch: Rune) -> bool:
+  for c in cards:
+    if c.insert:
+      c.text &= $ch
 
 eventCursorSelect.listen do (pos: Rect) -> bool:
   if cursor.focused.isSome:
@@ -109,10 +145,8 @@ eventCursorHover.listen do (pos: Rect) -> bool:
 
 eventUpdate.listen do (dt: float32) -> bool: 
   for c in cards.mitems:
-    var visited = toHashSet [c]
-
     let
-      progress = c.progress visited
+      progress = c.progress
       target = progress.completion / progress.time
 
     if dt >= CARD_SPEED: c.progressVal = target
@@ -144,8 +178,7 @@ proc draw*(self: Card) =
     config.scheme[todo],
   )
 
-  var visited = toHashSet [self]
-  let progress = self.progress visited
+  let progress = self.progress
 
   if progress.fail:
     drawRectFill(
@@ -171,22 +204,50 @@ proc draw*(self: Card) =
     int(camera.unit / 8),
     config.scheme[border],
   )
-  self.sprite.draw(
+  drawRectOutline(
     newRect(
       position.location,
       newVector2(1),
     ).offset(camera.position).scale(camera.unit),
-    color = config.scheme[border],
+    int(camera.unit / 8),
+    config.scheme[border],
   )
 
-  if progress.done and not progress.fail:
-    self.doneSprite.draw(
-      newRect(
-        position.location,
-        newVector2(1),
-      ).offset(camera.position).scale(camera.unit),
-      color = config.scheme[border],
+  let size = cardFont.sizeText(self.text) / 64.0
+  cardFont.draw(
+    self.text,
+    position.offset(camera.position + newVector2(1.25, (1.0 - size.y) / 2)).scale(camera.unit).location, 
+    config.scheme[SchemeColor.text],
+    scale = camera.unit / 64,
+    wrap = (self.position.width - 1.5) * camera.unit,
+  )
+
+  if cursor.time > 0.5 and self.insert:
+    let text_start = position.offset(camera.position + newVector2(1.25, (1.0 - size.y) / 2)).scale(camera.unit).location
+    let start = cardFont.sizeText(self.text) / 64.0
+    drawLine(
+      (position.location + camera.position + newVector2(1.25 + start.x, 3 / 16)) * camera.unit,
+      (position.location + camera.position + newVector2(1.25 + start.x, 13 / 16)) * camera.unit,
+      camera.unit / 16,
+      config.scheme[SchemeColor.text],
     )
+
+  if progress.done and not progress.fail:
+    let
+      a = (position.location + camera.position + newVector2(1 / 16)) * camera.unit
+      b = a + newVector2(camera.unit * 14 / 16)
+    drawLine(
+      a, b,
+      camera.unit / 8,
+      config.scheme[border],
+    )
+    drawLine(
+      newVector2(a.x, b.y),
+      newVector2(b.x, a.y),
+      camera.unit / 8,
+      config.scheme[border],
+    )
+
 
 proc drawTop*(self: Card) =
   if self.selected:

@@ -24,4 +24,4 @@ proc init*(c: var Config) =
   c.scheme[todo] = newColor(129, 161, 193)
   c.scheme[done] = newColor(161, 184, 207)
   c.scheme[grid] = newColor(67, 76, 94)
-  c.scheme[text] = newColor(200, 200, 200)
+  c.scheme[text] = newColor(76, 86, 106)

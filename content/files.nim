@@ -8,6 +8,7 @@ resToc(root, "content.bin",
   @[
     "8x.png",
     "32x.png",
+    "pixel.ttf",
   ]
 )
 

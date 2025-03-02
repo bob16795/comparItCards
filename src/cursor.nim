@@ -23,7 +23,12 @@ type
     sprite*: UISprite
 
     wireStart*: Option[Vector2]
+    clickTime: float32
+    doubleClickTime: float32
+    mouseDown: bool
 
+createEvent[void] eventEndInput 
+createEvent[void] eventCursorInput 
 createEvent[Rect] eventCursorSelect
 createEvent[Rect] eventCursorHover
 createEvent[Rect] eventCursorWire
@@ -37,8 +42,13 @@ const
   CURSOR_SPEED* = 0.05
 
 eventMouseClick.listen do (btn: int) -> bool:
+  eventEndInput.send
+
   case btn
   of 0:
+    cursor.mouseDown = true
+    cursor.clickTime = 0
+
     cursor.pin = some(cursor.target.location)
 
     eventCursorSelect.send cursor.target
@@ -50,6 +60,14 @@ eventMouseClick.listen do (btn: int) -> bool:
 eventMouseRelease.listen do (btn: int) -> bool:
   case btn
   of 0: 
+    if cursor.clickTime < 0.45:
+      if cursor.doubleClicktime > 0:
+        cursor.doubleClicktime = 0
+        eventCursorInput.send
+      else:
+        cursor.doubleClicktime = 0.25
+
+    cursor.mouseDown = false
     if cursor.pin.isSome() and
        cursor.canMove and
        cursor.moveDist != newVector2(0):
@@ -120,6 +138,11 @@ eventUpdate.listen do (dt: float32) -> bool:
   cursor.time += dt
   if cursor.time > 1.0:
     cursor.time -= 1.0
+  if cursor.doubleClickTime > 0:
+    cursor.doubleClickTime -= dt
+
+  if cursor.mouseDown:
+    cursor.clickTime += dt
 
   let
     target = if cursor.canSize: cursor.focused.get(cursor.target).sizeOffset(cursor.moveDist)
