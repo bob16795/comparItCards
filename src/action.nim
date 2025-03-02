@@ -7,6 +7,8 @@ import file
 
 import textureData
 
+import native_dialogs
+
 import options
 import sequtils
 import sets
@@ -137,13 +139,20 @@ eventPressKey.listen do (key: Key) -> bool:
   elif key == keyO:
     if globalCtx.window.isKeyDown(keyLeftControl) or
        globalCtx.window.isKeyDown(keyRightControl):
-      readCIKFile("plan.nn")
+      let infile = callDialogFileOpen("Select your File")
+      if infile == "": return
+
+      readCIKFile(infile)
+
       history = @[]
       next = 0
   elif key == keyS:
     if globalCtx.window.isKeyDown(keyLeftControl) or
        globalCtx.window.isKeyDown(keyRightControl):
-      writeCIKFile("tmp.nn")
+      let outfile = callDialogFileSave("Save File")
+      if outfile == "": return
+
+      writeCIKFile(outfile)
   elif key == keySpace:
     var toggles: seq[Card]
       
